@@ -128,9 +128,12 @@ h1 .thin { font-weight: 400; color: var(--muted); }
 /* ---- Discord poster (rendered off-screen, rasterized to PNG) ---- */
 .poster-stage { position: fixed; left: -10000px; top: 0; pointer-events: none; }
 .poster {
-  width: 900px; box-sizing: border-box; background: var(--bg); color: var(--text);
+  width: 1440px; box-sizing: border-box; background: var(--bg); color: var(--text);
   padding: 40px 44px 30px; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
+.p-body { display: flex; gap: 40px; align-items: flex-start; margin-top: 6px; }
+.p-col { flex: 1; min-width: 0; }
+.p-col > .p-label:first-child { margin-top: 10px; }
 .p-head { display: flex; justify-content: space-between; align-items: baseline; gap: 20px; border-bottom: 2px solid var(--gold); padding-bottom: 16px; }
 .p-head > div:first-child { min-width: 0; }
 .p-kicker { color: var(--gold); font-weight: 700; letter-spacing: 3px; font-size: 15px; }
@@ -141,7 +144,7 @@ h1 .thin { font-weight: 400; color: var(--muted); }
 .p-label::before { content: ""; width: 18px; height: 4px; background: var(--muted); border-radius: 2px; }
 .p-label.gold { color: var(--gold); } .p-label.gold::before { background: var(--gold); }
 .p-label.red { color: var(--red); } .p-label.red::before { background: var(--red); }
-.p-games { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.p-games { display: flex; flex-direction: column; gap: 12px; }
 .p-game { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
 .p-game.blowout { border-left: 4px solid var(--gold); }
 .p-game.nailbiter { border-left: 4px solid var(--green); }
