@@ -35,9 +35,15 @@ npm run dev
 2. Import the repo in Vercel. Framework preset: **Vite**. If this lives in a
    subfolder of a larger repo, set **Root Directory** to that folder (same fix
    you used for the power-rankings app).
-3. Add an environment variable: `ANTHROPIC_API_KEY` = your Console key. This is
-   billed to your Anthropic **Console** balance, separate from Claude Max.
-4. Deploy. The `api/recap.js` serverless function is picked up automatically.
+3. Add environment variables:
+   - `ANTHROPIC_API_KEY` = your Console key. Billed to your Anthropic **Console**
+     balance, separate from Claude Max.
+   - `DISCORD_WEBHOOK_URL` (for the **Post to Discord** button) = a channel
+     webhook. In Discord: the target channel → Edit Channel → Integrations →
+     Webhooks → New Webhook → Copy Webhook URL. Point it at whatever channel you
+     want recaps in (e.g. a #recaps or #power_rankings channel).
+4. Deploy. The `api/recap.js` and `api/discord.js` functions are picked up
+   automatically.
 
 ## Editing the league config
 
@@ -80,6 +86,7 @@ npm test
 
 ```
 api/recap.js        Anthropic call (serverless) — flavor text only
+api/discord.js      posts the recap to a Discord channel webhook
 src/config.js       league config — the file you edit
 src/sleeperClient.js Sleeper fetches + players cache + roster→name map
 src/recapEngine.js  pure math (tested)

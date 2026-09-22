@@ -18,6 +18,7 @@ export default function App() {
   const [flavor, setFlavor] = useState(null);
   const [aiState, setAiState] = useState("idle"); // idle | loading | error
   const [copied, setCopied] = useState(false);
+  const [posting, setPosting] = useState("idle"); // idle | posting | done | error
 
   // ---- boot: pull everything once ----
   useEffect(() => {
@@ -105,6 +106,22 @@ export default function App() {
     catch { /* clipboard blocked */ }
   }
 
+  async function postDiscord() {
+    if (!facts) return;
+    setPosting("posting");
+    try {
+      const res = await fetch("/api/discord", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ week: facts.week, text: chatText }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setPosting("done"); setTimeout(() => setPosting("idle"), 2500);
+    } catch {
+      setPosting("error"); setTimeout(() => setPosting("idle"), 3500);
+    }
+  }
+
   if (boot.status === "loading") return <Shell><p className="muted">Loading league data…</p></Shell>;
   if (boot.status === "error")
     return <Shell><p className="error">Couldn't reach Sleeper. {boot.error}<br/><span className="muted">If you're viewing this inside a preview, deploy it — Sleeper blocks preview requests.</span></p></Shell>;
@@ -128,6 +145,9 @@ export default function App() {
             </select>
           </label>
           <button className="btn" onClick={copyChat}>{copied ? "Copied ✓" : "Copy for chat"}</button>
+          <button className="btn ghost" onClick={postDiscord} disabled={posting === "posting"}>
+            {posting === "posting" ? "Posting…" : posting === "done" ? "Posted ✓" : posting === "error" ? "Failed — retry" : "Post to Discord"}
+          </button>
         </div>
       </header>
 
@@ -137,9 +157,9 @@ export default function App() {
           <Scoreboard facts={facts} flavor={flavor} />
           <Superlatives facts={facts} flavor={flavor} />
           <GameOfWeek facts={facts} flavor={flavor} />
+          <Preview facts={facts} flavor={flavor} />
           <Standings facts={facts} />
           <Roast flavor={flavor} />
-          <Preview facts={facts} flavor={flavor} />
         </main>
       )}
     </Shell>

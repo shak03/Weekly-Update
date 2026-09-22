@@ -43,6 +43,9 @@ h1 .thin { font-weight: 400; color: var(--muted); }
   padding: 9px 14px; font-weight: 700; cursor: pointer; font: inherit; font-weight: 700;
 }
 .btn:hover { filter: brightness(1.06); }
+.btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+.btn.ghost:hover { border-color: var(--muted); filter: none; }
+.btn:disabled { opacity: .6; cursor: default; }
 .link { background: none; border: 0; color: var(--gold); cursor: pointer; font: inherit; text-decoration: underline; padding: 0; }
 
 /* ---- hero headline ---- */
