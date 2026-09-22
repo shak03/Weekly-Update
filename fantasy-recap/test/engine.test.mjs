@@ -1,4 +1,4 @@
-import { optimalLineup, computeStandingsWithMovement, computeStandings } from "../src/recapEngine.js";
+import { optimalLineup, computeStandingsWithMovement, computeStandings, computeWeek } from "../src/recapEngine.js";
 
 let fails = 0;
 const eq = (label, got, want) => {
@@ -56,6 +56,37 @@ eq("R2 movement +1", by.R2.movement, 1);
 eq("R3 movement -2", by.R3.movement, -2);
 eq("R1 movement -2", by.R1.movement, -2);
 eqv("R1 record 1-1", `${by.R1.w}-${by.R1.l}`, "1-1");
+
+// ---- bench blunder: losers only, costGame prioritized, winners excluded ----
+// Slots: QB, RB, + 2 bench. Positions are trivial to reason about.
+const rp = ["QB", "RB", "BN", "BN"];
+const pm = {
+  QB1:{position:"QB"}, RB1:{position:"RB"}, RB9:{position:"RB"},        // r1 winner
+  QB2:{position:"QB"}, RB2:{position:"RB"}, RB3:{position:"RB"},        // r2 loser
+  QB4:{position:"QB"}, RB4:{position:"RB"}, RB5:{position:"RB"},        // r3 loser
+  QB5:{position:"QB"}, RB6:{position:"RB"},                            // r4 winner
+};
+const E = (rid, mid, points, starters, players, pp) => ({ roster_id: rid, matchup_id: mid, points, starters, players, players_points: pp });
+const benchEntries = [
+  // r1 WON 65-20 but has the LEAGUE'S BIGGEST bench delta (45). Must be excluded.
+  E(1, 1, 65, ["QB1","RB1"], ["QB1","RB1","RB9"], { QB1:60, RB1:5, RB9:50 }),
+  // r2 LOST 20-65, delta 40, but optimal 60 < 65 -> costGame false.
+  E(2, 1, 20, ["QB2","RB2"], ["QB2","RB2","RB3"], { QB2:10, RB2:10, RB3:50 }),
+  // r3 LOST 20-45, delta 30, optimal 50 > 45 -> costGame TRUE. Should be picked.
+  E(3, 2, 20, ["QB4","RB4"], ["QB4","RB4","RB5"], { QB4:10, RB4:10, RB5:40 }),
+  // r4 WON 45-20.
+  E(4, 2, 45, ["QB5","RB6"], ["QB5","RB6"], { QB5:30, RB6:15 }),
+];
+const cw = computeWeek({
+  entries: benchEntries,
+  rosterPositions: rp,
+  rosterIdToManager: { 1:"R1", 2:"R2", 3:"R3", 4:"R4" },
+  playersMap: pm,
+  thresholds: { blowout: 40, nailbiter: 8 },
+});
+eqv("bench blunder is a loser (not the winner w/ biggest gap)", cw.benchBlunder.manager, "R3");
+eqv("costGame prioritized over bigger raw delta", cw.benchBlunder.costGame, true);
+eq("bench blunder delta", cw.benchBlunder.delta, 30);
 
 console.log(fails === 0 ? "\nALL GREEN" : `\n${fails} FAILURE(S)`);
 process.exit(fails === 0 ? 0 : 1);

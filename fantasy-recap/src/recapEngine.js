@@ -171,14 +171,34 @@ export function computeWeek({
     }
   }
 
-  // Bench blunder: biggest gap between optimal and actual.
-  let benchBlunder = null;
-  for (const e of entries || []) {
-    const opt = optimalLineup(e, rosterPositions, playersMap);
-    if (!benchBlunder || opt.delta > benchBlunder.delta) {
-      benchBlunder = { manager: nameOf(e.roster_id), ...opt };
-    }
+  // Win/loss + opponent points per roster, from the paired games.
+  const perRoster = {};
+  for (const g of games) {
+    perRoster[g.winner.rosterId] = { won: !g.tie, ownPoints: g.winner.points, oppPoints: g.loser.points };
+    perRoster[g.loser.rosterId] = { won: false, ownPoints: g.loser.points, oppPoints: g.winner.points };
   }
+
+  // Bench blunder — ONLY among managers who LOST. A winner leaving points on
+  // the bench isn't a story. Spiciest when their optimal lineup would have won
+  // the game outright ("sold it"): that's ranked ahead of a bigger raw gap.
+  const benchCandidates = [];
+  for (const e of entries || []) {
+    const info = perRoster[e.roster_id];
+    if (!info || info.won) continue;
+    const opt = optimalLineup(e, rosterPositions, playersMap);
+    if (opt.delta <= 0) continue;
+    benchCandidates.push({
+      manager: nameOf(e.roster_id),
+      ...opt,
+      oppPoints: round2(info.oppPoints),
+      lossMargin: round2(info.oppPoints - info.ownPoints),
+      costGame: opt.optimalPoints > info.oppPoints, // best legal lineup would've won
+    });
+  }
+  benchCandidates.sort(
+    (a, b) => Number(b.costGame) - Number(a.costGame) || b.delta - a.delta
+  );
+  const benchBlunder = benchCandidates[0] || null;
 
   return { week: null, games, highTeam, lowTeam, performance, benchBlunder };
 }

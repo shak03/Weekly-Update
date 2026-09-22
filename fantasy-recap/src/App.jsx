@@ -221,7 +221,9 @@ function Superlatives({ facts, flavor }) {
         <Stat k="Top score" v={s.highTeam.manager} n={s.highTeam.points} tone="hype" />
         <Stat k="Low score" v={s.lowTeam.manager} n={s.lowTeam.points} tone="cold" />
         <Stat k="Performance of the week" v={`${s.performance.player} · ${s.performance.manager}`} n={s.performance.points} tone="hype" />
-        <Stat k="Bench blunder" v={s.benchBlunder.manager} n={`-${s.benchBlunder.delta}`} tone="cold" sub={`started ${s.benchBlunder.actualPoints} · optimal ${s.benchBlunder.optimalPoints}`} />
+        {s.benchBlunder
+          ? <Stat k={s.benchBlunder.costGame ? "Bench blunder · cost the win" : "Bench blunder"} v={s.benchBlunder.manager} n={`-${s.benchBlunder.delta}`} tone="cold" sub={`started ${s.benchBlunder.actualPoints} · optimal ${s.benchBlunder.optimalPoints}`} />
+          : <Stat k="Bench blunder" v="None — losers started their best" n="—" tone="cold" />}
       </div>
       {flavor?.superlatives && <p className="prose">{flavor.superlatives}</p>}
     </section>

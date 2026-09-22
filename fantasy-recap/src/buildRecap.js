@@ -108,7 +108,12 @@ export function buildChatText(facts, flavor) {
   L.push(`• Top score: ${s.highTeam.manager} (${s.highTeam.points})`);
   L.push(`• Low score: ${s.lowTeam.manager} (${s.lowTeam.points})`);
   L.push(`• Performance of the week: ${s.performance.player} — ${s.performance.points} (${s.performance.manager})`);
-  L.push(`• Bench blunder: ${s.benchBlunder.manager} left ${s.benchBlunder.delta} on the bench`);
+  if (s.benchBlunder) {
+    const note = s.benchBlunder.costGame ? " — cost them the win" : "";
+    L.push(`• Bench blunder: ${s.benchBlunder.manager} left ${s.benchBlunder.delta} on the bench in a loss${note}`);
+  } else {
+    L.push(`• Bench blunder: none — the losers all started their best lineup`);
+  }
   L.push("");
 
   if (facts.gotw?.type === "game" && facts.gotw.result) {

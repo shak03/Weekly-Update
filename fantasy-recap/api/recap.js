@@ -82,7 +82,7 @@ SUPERLATIVES:
 - Top score: ${f.superlatives.highTeam.manager} (${f.superlatives.highTeam.points})
 - Low score: ${f.superlatives.lowTeam.manager} (${f.superlatives.lowTeam.points})
 - Performance of the week: ${f.superlatives.performance.player} (${f.superlatives.performance.position}, ${f.superlatives.performance.points}) — started by ${f.superlatives.performance.manager}
-- Bench blunder: ${f.superlatives.benchBlunder.manager} left ${f.superlatives.benchBlunder.delta} on the bench (started ${f.superlatives.benchBlunder.actualPoints}, optimal ${f.superlatives.benchBlunder.optimalPoints})
+${benchLine(f.superlatives.benchBlunder)}
 
 GAME OF THE WEEK:
 ${gotwText(f.gotw)}
@@ -93,15 +93,29 @@ ${f.standings.map((s) => `${s.rank}. ${s.manager} ${s.w}-${s.l}${s.t ? "-" + s.t
 NEXT WEEK:
 ${nextWeekText(f.nextWeek)}
 
+ROAST RULES (important):
+- Only roast a bench mistake if that manager LOST their matchup. NEVER roast anyone for bench points in a game they WON.
+- If their optimal lineup would have won the game, go in hard — the points to win were sitting right there on their bench.
+- If there's no bench blunder worth naming, roast the week's biggest choker instead (worst loss or lowest score).
+
 Return ONLY a JSON object, no prose around it, with exactly these keys:
 {
   "headline": "one punchy sentence capturing the week's big story",
   "quips": { ${f.games.map((g) => `"${g.id}": "one-line take on ${g.winner.manager} vs ${g.loser.manager}"`).join(", ")} },
   "superlatives": "2-3 sentences on the high/low scores and performance of the week (hype the studs)",
   "gotw_blurb": "2-3 sentences on the Game of the Week",
-  "roast": "2-3 sentences roasting the bench blunder and/or the week's biggest choker",
+  "roast": "2-3 sentences. Follow the ROAST RULES above: roast the bench blunder only if it was a loss (harder if it cost the win); otherwise roast the biggest choker",
   "preview": "2-3 sentences hyping next week's featured/rivalry matchup"
 }`;
+}
+
+function benchLine(b) {
+  if (!b)
+    return "- Bench blunder: none worth naming — the managers who lost basically started their best lineup.";
+  const cost = b.costGame
+    ? ` and their optimal lineup (${b.optimalPoints}) would have BEATEN their opponent's ${b.oppPoints} — this bench call cost them the win`
+    : ` (they lost by ${b.lossMargin}, and even their optimal ${b.optimalPoints} wouldn't have topped ${b.oppPoints})`;
+  return `- Bench blunder [LOSS]: ${b.manager} left ${b.delta} on the bench${cost}.`;
 }
 
 function gotwText(gotw) {
