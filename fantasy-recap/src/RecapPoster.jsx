@@ -59,14 +59,19 @@ const RecapPoster = forwardRef(function RecapPoster({ facts, flavor }, ref) {
       </div>
       {flavor?.gotw_blurb && <div className="p-blurb">{flavor.gotw_blurb}</div>}
 
-      {nw && (
-        <div className="p-next">
-          <span className="p-nextlabel">NEXT WEEK</span>
-          {nw.gotw?.teams ? <b>{nw.gotw.teams.join("  vs  ")}</b>
-            : nw.gotw?.type === "rivalry" ? <b>Rivalry Week</b>
-            : nw.gotw?.type === "bowl" ? <b>Bowl Week</b> : null}
-          {nw.rivalryAngle ? <span className="p-angle"> · {nw.rivalryAngle}</span> : null}
-        </div>
+      {(nw || flavor?.preview) && (
+        <>
+          {nw && (
+            <div className="p-next">
+              <span className="p-nextlabel">NEXT WEEK</span>
+              {nw.gotw?.teams ? <b>{nw.gotw.teams.join("  vs  ")}</b>
+                : nw.gotw?.type === "rivalry" ? <b>Rivalry Week</b>
+                : nw.gotw?.type === "bowl" ? <b>Bowl Week</b> : null}
+              {nw.rivalryAngle ? <span className="p-angle"> · {nw.rivalryAngle}</span> : null}
+            </div>
+          )}
+          {flavor?.preview && <div className="p-blurb">{flavor.preview}</div>}
+        </>
       )}
 
       <div className="p-label">Standings</div>
