@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { toPng } from "html-to-image";
+import RecapPoster from "./RecapPoster.jsx";
 import {
   getState, getLeague, getUsers, getRosters, getMatchups, getPlayers,
   buildRosterMap, weekHasScores,
@@ -19,6 +21,7 @@ export default function App() {
   const [aiState, setAiState] = useState("idle"); // idle | loading | error
   const [copied, setCopied] = useState(false);
   const [posting, setPosting] = useState("idle"); // idle | posting | done | error
+  const posterRef = useRef(null);
 
   // ---- boot: pull everything once ----
   useEffect(() => {
@@ -110,10 +113,23 @@ export default function App() {
     if (!facts) return;
     setPosting("posting");
     try {
+      let body;
+      try {
+        if (document?.fonts?.ready) await document.fonts.ready;
+        const dataUrl = await toPng(posterRef.current, {
+          pixelRatio: 2,
+          cacheBust: true,
+          backgroundColor: "#0b0e13",
+        });
+        body = { imageBase64: dataUrl.split(",")[1], week: facts.week };
+      } catch {
+        // couldn't rasterize (font/canvas hiccup) — still post something useful
+        body = { text: chatText, week: facts.week };
+      }
       const res = await fetch("/api/discord", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ week: facts.week, text: chatText }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error(await res.text());
       setPosting("done"); setTimeout(() => setPosting("idle"), 2500);
@@ -161,6 +177,12 @@ export default function App() {
           <Standings facts={facts} />
           <Roast flavor={flavor} />
         </main>
+      )}
+
+      {facts && (
+        <div className="poster-stage" aria-hidden="true">
+          <RecapPoster ref={posterRef} facts={facts} flavor={flavor} />
+        </div>
       )}
     </Shell>
   );

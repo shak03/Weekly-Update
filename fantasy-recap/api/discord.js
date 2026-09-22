@@ -16,18 +16,31 @@ export default async function handler(req, res) {
   if (!webhook) return res.status(500).json({ error: "DISCORD_WEBHOOK_URL is not set" });
 
   try {
-    const { text, week, title } = req.body || {};
-    if (!text) return res.status(400).json({ error: "Missing text" });
-
+    const { text, week, title, imageBase64 } = req.body || {};
     const heading = title || (week ? `CCFF — Week ${week} Recap` : "CCFF Recap");
-    const chunks = chunkText(String(text), EMBED_LIMIT);
 
+    // Preferred path: post the rendered recap as a PNG attachment (multipart).
+    if (imageBase64) {
+      const bytes = Buffer.from(imageBase64, "base64");
+      const form = new FormData();
+      form.append("payload_json", JSON.stringify({ content: `**${heading}**` }));
+      form.append("files[0]", new Blob([bytes], { type: "image/png" }), `recap-week-${week || "x"}.png`);
+      const r = await fetch(webhook, { method: "POST", body: form });
+      if (!r.ok && r.status !== 204) {
+        throw new Error(`Discord ${r.status}: ${await r.text().catch(() => "")}`);
+      }
+      return res.status(200).json({ ok: true, mode: "image" });
+    }
+
+    // Fallback: text embed(s).
+    if (!text) return res.status(400).json({ error: "Missing text or imageBase64" });
+    const chunks = chunkText(String(text), EMBED_LIMIT);
     for (let i = 0; i < chunks.length; i++) {
       const embed = { description: chunks[i], color: GOLD };
       if (i === 0) embed.title = heading;
       await postChunk(webhook, { embeds: [embed] });
     }
-    return res.status(200).json({ ok: true, messages: chunks.length });
+    return res.status(200).json({ ok: true, mode: "text", messages: chunks.length });
   } catch (err) {
     return res.status(502).json({ error: String(err) });
   }

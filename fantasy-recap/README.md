@@ -39,7 +39,7 @@ npm run dev
    - `ANTHROPIC_API_KEY` = your Console key. Billed to your Anthropic **Console**
      balance, separate from Claude Max.
    - `DISCORD_WEBHOOK_URL` (for the **Post to Discord** button) = a channel
-     webhook. In Discord: the target channel → Edit Channel → Integrations →
+     webhook; the button posts the recap as a rendered PNG image to it. In Discord: the target channel → Edit Channel → Integrations →
      Webhooks → New Webhook → Copy Webhook URL. Point it at whatever channel you
      want recaps in (e.g. a #recaps or #power_rankings channel).
 4. Deploy. The `api/recap.js` and `api/discord.js` functions are picked up
@@ -86,12 +86,13 @@ npm test
 
 ```
 api/recap.js        Anthropic call (serverless) — flavor text only
-api/discord.js      posts the recap to a Discord channel webhook
+api/discord.js      posts the recap to Discord (PNG attachment, text fallback)
 src/config.js       league config — the file you edit
 src/sleeperClient.js Sleeper fetches + players cache + roster→name map
 src/recapEngine.js  pure math (tested)
 src/buildRecap.js   GOTW resolution, next-week context, chat-text builder
 src/App.jsx         the page
+src/RecapPoster.jsx off-screen poster that gets rasterized to the Discord PNG
 src/recap.css       styling
 test/engine.test.mjs unit tests
 ```
