@@ -129,14 +129,15 @@ h1 .thin { font-weight: 400; color: var(--muted); }
 .poster-stage { position: fixed; left: -10000px; top: 0; pointer-events: none; }
 .poster {
   width: 900px; box-sizing: border-box; background: var(--bg); color: var(--text);
-  padding: 40px 44px 30px; font-family: "Figtree", system-ui, sans-serif;
+  padding: 40px 44px 30px; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
-.p-head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid var(--gold); padding-bottom: 16px; }
+.p-head { display: flex; justify-content: space-between; align-items: baseline; gap: 20px; border-bottom: 2px solid var(--gold); padding-bottom: 16px; }
+.p-head > div:first-child { min-width: 0; }
 .p-kicker { color: var(--gold); font-weight: 700; letter-spacing: 3px; font-size: 15px; }
-.p-title { font-family: "Saira Condensed", sans-serif; font-weight: 800; font-size: 52px; line-height: .95; }
-.p-week { font-family: "Saira Condensed", sans-serif; font-weight: 700; font-size: 34px; color: var(--muted); }
-.p-headline { font-family: "Saira Condensed", sans-serif; font-weight: 700; font-size: 30px; margin: 22px 0 6px; }
-.p-label { font-family: "Saira Condensed", sans-serif; font-weight: 600; font-size: 20px; color: var(--muted); margin: 26px 0 12px; display: flex; align-items: center; gap: 10px; }
+.p-title { font-weight: 800; font-size: 44px; line-height: 1; letter-spacing: -0.5px; white-space: nowrap; }
+.p-week { font-weight: 700; font-size: 30px; color: var(--muted); white-space: nowrap; }
+.p-headline { font-weight: 800; font-size: 25px; line-height: 1.2; margin: 20px 0 2px; }
+.p-label { font-weight: 700; font-size: 18px; color: var(--muted); margin: 30px 0 12px; display: flex; align-items: center; gap: 10px; text-transform: uppercase; letter-spacing: 1px; }
 .p-label::before { content: ""; width: 18px; height: 4px; background: var(--muted); border-radius: 2px; }
 .p-label.gold { color: var(--gold); } .p-label.gold::before { background: var(--gold); }
 .p-label.red { color: var(--red); } .p-label.red::before { background: var(--red); }
@@ -144,22 +145,22 @@ h1 .thin { font-weight: 400; color: var(--muted); }
 .p-game { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
 .p-game.blowout { border-left: 4px solid var(--gold); }
 .p-game.nailbiter { border-left: 4px solid var(--green); }
-.p-grow { display: flex; justify-content: space-between; align-items: baseline; }
-.p-grow.p-loser { color: var(--muted); margin-top: 2px; }
-.p-mgr { font-weight: 700; font-size: 18px; }
-.p-pts { font-family: "Saira Condensed", sans-serif; font-weight: 700; font-size: 24px; }
+.p-grow { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.p-grow.p-loser { color: var(--muted); margin-top: 5px; }
+.p-mgr { font-weight: 700; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+.p-pts { font-weight: 800; font-size: 22px; flex: none; }
 .p-gtag { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
 .p-chip { font-size: 12px; font-weight: 800; padding: 3px 9px; border-radius: 999px; letter-spacing: .5px; }
 .p-chip.gold { background: rgba(255,194,75,.16); color: var(--gold); }
 .p-chip.green { background: rgba(74,222,128,.16); color: var(--green); }
-.p-margin { color: var(--muted); font-size: 13px; margin-left: auto; }
+.p-margin { color: var(--muted); font-size: 13px; margin-left: auto; white-space: nowrap; }
 .p-supers { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .p-stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
 .p-stat.gold { border-left: 4px solid var(--gold); }
 .p-stat.red { border-left: 4px solid var(--red); }
 .p-stat-k { color: var(--muted); font-size: 14px; }
 .p-stat-v { font-weight: 700; font-size: 18px; margin-top: 3px; }
-.p-stat-n { font-family: "Saira Condensed", sans-serif; font-weight: 800; font-size: 30px; margin-top: 2px; }
+.p-stat-n { font-weight: 800; font-size: 28px; margin-top: 2px; }
 .p-stat.gold .p-stat-n { color: var(--gold); }
 .p-stat.red .p-stat-n { color: var(--red); }
 .p-gotw { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--gold); border-radius: 12px; padding: 16px; font-size: 20px; }
