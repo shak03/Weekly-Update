@@ -8,6 +8,7 @@ import {
   SPECIAL_WEEKS,
   RIVALRIES,
 } from "./config.js";
+import { playerName } from "./recapEngine.js";
 
 const samePair = (a, b) =>
   (a[0] === b[0] && a[1] === b[1]) || (a[0] === b[1] && a[1] === b[0]);
@@ -69,8 +70,85 @@ export function buildNextWeek(week) {
   };
 }
 
+// Format completed trades from raw Sleeper transactions into per-party
+// "what each manager received" (players + draft picks + FAAB).
+const ROUND_ORD = { 1: "1st", 2: "2nd", 3: "3rd", 4: "4th", 5: "5th" };
+const ordinalRound = (r) => ROUND_ORD[r] || `${r}th`;
+
+export function buildTrades(transactions, rosterIdToManager, playersMap) {
+  const trades = [];
+  for (const tx of transactions || []) {
+    if (tx.type !== "trade" || tx.status !== "complete") continue;
+    const rosterIds = tx.roster_ids || [];
+    const receives = {};
+    rosterIds.forEach((rid) => (receives[rid] = []));
+
+    for (const [pid, rid] of Object.entries(tx.adds || {})) {
+      (receives[rid] ||= []).push(playerName(pid, playersMap));
+    }
+    for (const pk of tx.draft_picks || []) {
+      (receives[pk.owner_id] ||= []).push(`${pk.season} ${ordinalRound(pk.round)}`);
+    }
+    for (const fb of tx.waiver_budget || []) {
+      (receives[fb.receiver] ||= []).push(`$${fb.amount} FAAB`);
+    }
+
+    trades.push({
+      id: tx.transaction_id || `trade-${trades.length}`,
+      created: tx.created || 0,
+      parties: rosterIds.map((rid) => ({
+        manager: rosterIdToManager[rid] || `Roster ${rid}`,
+        receives: receives[rid] || [],
+      })),
+    });
+  }
+  trades.sort((a, b) => b.created - a.created);
+  return trades;
+}
+
+// Next week's actual pairings (from Sleeper's matchups for week+1), with each
+// manager's current record so the preview can't invent matchups.
+export function buildNextSlate(entries, rosterIdToManager, standings) {
+  if (!Array.isArray(entries) || entries.length === 0) return null;
+  const rec = Object.fromEntries(
+    (standings || []).map((s) => [s.manager, `${s.w}-${s.l}${s.t ? "-" + s.t : ""}`])
+  );
+  const byId = new Map();
+  for (const e of entries) {
+    if (e.matchup_id == null) continue;
+    if (!byId.has(e.matchup_id)) byId.set(e.matchup_id, []);
+    byId.get(e.matchup_id).push(e);
+  }
+  const slate = [];
+  for (const pair of byId.values()) {
+    if (pair.length !== 2) continue;
+    const [a, b] = pair.map((e) => {
+      const manager = rosterIdToManager[e.roster_id] || `Roster ${e.roster_id}`;
+      return { manager, record: rec[manager] || "" };
+    });
+    slate.push({ a, b, rivalry: RIVALRIES.some((r) => samePair(r, [a.manager, b.manager])) });
+  }
+  return slate.length ? slate : null;
+}
+
 // Assemble the facts payload sent to /api/recap and used to render.
-export function assembleFacts({ week, computed, standings, gotw, nextWeek }) {
+export function assembleFacts({ week, computed, standings, gotw, nextWeek, trades, nextSlate }) {
+  let nw = nextWeek ? { ...nextWeek } : null;
+  let slate = nextSlate || null;
+  // Rivalry Week fallback: if Sleeper didn't return next week's pairings, the
+  // configured rivalry list IS that week's slate.
+  if (!slate && nw?.gotw?.type === "rivalry") {
+    const rec = Object.fromEntries(
+      (standings || []).map((s) => [s.manager, `${s.w}-${s.l}${s.t ? "-" + s.t : ""}`])
+    );
+    slate = RIVALRIES.map(([x, y]) => ({
+      a: { manager: x, record: rec[x] || "" },
+      b: { manager: y, record: rec[y] || "" },
+      rivalry: true,
+    }));
+  }
+  if (slate) nw = { ...(nw || {}), slate };
+
   return {
     leagueName: LEAGUE_NAME,
     week,
@@ -82,8 +160,9 @@ export function assembleFacts({ week, computed, standings, gotw, nextWeek }) {
       benchBlunder: computed.benchBlunder,
     },
     gotw,
+    nextWeek: nw,
+    trades: trades || [],
     standings,
-    nextWeek,
   };
 }
 
@@ -100,6 +179,7 @@ export function buildChatText(facts, flavor) {
   for (const g of facts.games) {
     const tag = g.tag === "blowout" ? " 💥" : g.tag === "nailbiter" ? " 😬" : "";
     L.push(`• ${g.winner.manager} ${g.winner.points} — ${g.loser.points} ${g.loser.manager}${tag}`);
+    if (flavor?.quips?.[g.id]) L.push(`   ${flavor.quips[g.id]}`);
   }
   L.push("");
 
@@ -127,6 +207,14 @@ export function buildChatText(facts, flavor) {
     L.push("");
   } else if (facts.gotw?.type === "rivalry") {
     L.push("🎯 RIVALRY WEEK — grudge matches all around.");
+    L.push("");
+  }
+
+  if (facts.trades?.length) {
+    L.push("🔁 RECENT TRADES");
+    for (const t of facts.trades) {
+      L.push(t.parties.map((p) => `${p.manager} gets ${p.receives.join(", ") || "—"}`).join("  ⇄  "));
+    }
     L.push("");
   }
 

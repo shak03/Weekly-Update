@@ -20,6 +20,8 @@ export const getUsers = () => getJSON(`${BASE}/league/${LEAGUE_ID}/users`);
 export const getRosters = () => getJSON(`${BASE}/league/${LEAGUE_ID}/rosters`);
 export const getMatchups = (week) =>
   getJSON(`${BASE}/league/${LEAGUE_ID}/matchups/${week}`);
+export const getTransactions = (week) =>
+  getJSON(`${BASE}/league/${LEAGUE_ID}/transactions/${week}`);
 
 // ---------------------------------------------------------------------------
 // Players map (~5MB). Cache in localStorage for 24h so we don't re-pull it on

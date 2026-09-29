@@ -1,4 +1,5 @@
 import { optimalLineup, computeStandingsWithMovement, computeStandings, computeWeek } from "../src/recapEngine.js";
+import { buildTrades, buildNextSlate, assembleFacts } from "../src/buildRecap.js";
 
 let fails = 0;
 const eq = (label, got, want) => {
@@ -87,6 +88,51 @@ const cw = computeWeek({
 eqv("bench blunder is a loser (not the winner w/ biggest gap)", cw.benchBlunder.manager, "R3");
 eqv("costGame prioritized over bigger raw delta", cw.benchBlunder.costGame, true);
 eq("bench blunder delta", cw.benchBlunder.delta, 30);
+
+// ---- buildTrades: routes players, picks, and FAAB to the right side ----
+const txPlayers = { P1: { first_name: "Player", last_name: "One" }, P2: { first_name: "Player", last_name: "Two" } };
+const txns = [
+  { type: "waiver", status: "complete", roster_ids: [3], adds: { P9: 3 } }, // ignored
+  {
+    type: "trade", status: "complete", roster_ids: [1, 2], created: 1000,
+    adds: { P1: 2, P2: 1 },
+    draft_picks: [{ season: "2026", round: 2, roster_id: 1, previous_owner_id: 1, owner_id: 2 }],
+    waiver_budget: [{ sender: 2, receiver: 1, amount: 5 }],
+  },
+];
+const tr = buildTrades(txns, { 1: "R1", 2: "R2" }, txPlayers);
+eqv("only the trade is kept (waiver ignored)", tr.length, 1);
+eqv("R1 side", `${tr[0].parties[0].manager}: ${tr[0].parties[0].receives.join(", ")}`, "R1: Player Two, $5 FAAB");
+eqv("R2 side (player + pick)", `${tr[0].parties[1].manager}: ${tr[0].parties[1].receives.join(", ")}`, "R2: Player One, 2026 2nd");
+
+// ---- per-side stars on each game ----
+const g1 = cw.games.find((x) => x.winner.manager === "R1");
+eqv("winner star is their top starter", g1.winner.star.player, "QB1");
+eq("winner star points", g1.winner.star.points, 60);
+eqv("loser star is their top starter", g1.loser.star.player, "QB2");
+
+// ---- next-week slate: real pairings + records + rivalry flag ----
+const nextEntries = [
+  { matchup_id: 1, roster_id: 1, points: 0 }, { matchup_id: 1, roster_id: 2, points: 0 },
+  { matchup_id: 2, roster_id: 3, points: 0 }, { matchup_id: 2, roster_id: 4, points: 0 },
+];
+const slate = buildNextSlate(
+  nextEntries,
+  { 1: "Josh Ishak", 2: "Bryson Oaks", 3: "Joey Wey", 4: "Cooper Barno" },
+  [{ manager: "Josh Ishak", w: 1, l: 2, t: 0 }, { manager: "Bryson Oaks", w: 1, l: 2, t: 0 }]
+);
+eqv("slate has 2 matchups", slate.length, 2);
+eqv("Josh vs Bryson flagged as rivalry", slate.find((m) => m.a.manager === "Josh Ishak").rivalry, true);
+eqv("Joey vs Cooper not a rivalry", slate.find((m) => m.a.manager === "Joey Wey").rivalry, false);
+eqv("record attached", slate[0].a.record, "1-2");
+
+// ---- Rivalry Week fallback when Sleeper returns no slate ----
+const fx = assembleFacts({
+  week: 3, computed: { games: [], highTeam: null, lowTeam: null, performance: null, benchBlunder: null },
+  standings: [], gotw: null, nextWeek: { gotw: { type: "rivalry" } }, trades: [], nextSlate: null,
+});
+eqv("rivalry fallback slate = 5 configured rivalries", fx.nextWeek.slate.length, 5);
+eqv("fallback includes Brett vs Cade", fx.nextWeek.slate.some((m) => m.a.manager === "Brett Mobley" && m.b.manager === "Cade Hoffman"), true);
 
 console.log(fails === 0 ? "\nALL GREEN" : `\n${fails} FAILURE(S)`);
 process.exit(fails === 0 ? 0 : 1);

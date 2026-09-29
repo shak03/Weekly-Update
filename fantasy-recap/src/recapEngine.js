@@ -127,6 +127,19 @@ export function computeWeek({
   thresholds,
 }) {
   const nameOf = (rid) => rosterIdToManager[rid] || `Roster ${rid}`;
+  // Highest-scoring starter on one side of a matchup.
+  const topStarter = (e) => {
+    const pp = e.players_points || {};
+    let best = null;
+    for (const pid of e.starters || []) {
+      if (!pid || pid === "0") continue;
+      const pts = Number(pp[pid] ?? 0);
+      if (!best || pts > best.points) {
+        best = { player: playerName(pid, playersMap), position: playerPosition(pid, playersMap), points: round2(pts) };
+      }
+    }
+    return best;
+  };
   const games = pairMatchups(entries).map((pair, i) => {
     // Sort so higher score is "winner" side; keep both.
     const [a, b] = pair[0].points >= pair[1].points ? pair : [pair[1], pair[0]];
@@ -136,8 +149,8 @@ export function computeWeek({
     else if (margin <= thresholds.nailbiter) tag = "nailbiter";
     return {
       id: `g${i + 1}`,
-      winner: { manager: nameOf(a.roster_id), points: round2(a.points), rosterId: a.roster_id },
-      loser: { manager: nameOf(b.roster_id), points: round2(b.points), rosterId: b.roster_id },
+      winner: { manager: nameOf(a.roster_id), points: round2(a.points), rosterId: a.roster_id, star: topStarter(a) },
+      loser: { manager: nameOf(b.roster_id), points: round2(b.points), rosterId: b.roster_id, star: topStarter(b) },
       margin,
       tie: a.points === b.points,
       tag,

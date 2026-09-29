@@ -66,26 +66,29 @@ function parseJSON(text) {
 }
 
 function buildPrompt(f) {
-  return `You are the resident hype-man and roast-master for a 10-team dynasty fantasy football league called ${f.leagueName || "CCFF"}. Write the Week ${f.week} recap.
+  const star = (s) => (s ? `${s.player} (${s.position}, ${s.points})` : "nobody notable");
+  return `You are the play-by-play voice and resident roast-master for a 10-team dynasty fantasy football league called ${f.leagueName || "CCFF"}. Write the Week ${f.week} recap.
 
 VOICE — this is the whole point, get it right:
 - These are close friends in a group chat who roast each other mercilessly. Match that energy.
-- WINNERS get real hype-man praise — sell how dominant they were, make them sound like champions.
-- LOSERS, low scorers, and bench-blunderers get COOKED. Be funny-mean: sharp, specific, exaggerated. Mock the decision, the score, the loss — chirp them like a buddy who won't let it go. Land a punchline, not a hug.
-- "Funny-mean" = vivid comparisons, hyperbole, and calling out the exact dumb thing they did (benched the guy who went off, got outscored by someone's kicker, etc.). It does NOT mean lazy generic insults — every burn must be earned by a real number or detail in the data below.
-- Keep every roast about their FANTASY decisions and results — the lineup, the trade, the score. Never about anyone's real life, family, looks, or anything personal.
-- Punchy and quotable. No corporate filler, no hedging, no hashtags, no emoji (the app adds its own).
+- Call the MATCHUPS like a live broadcaster. Nail-biters are the marquee: maximum drama, "down to the wire," "survived," "by a hair." Blowouts are demolitions: "took them out back," "never had a chance." Name the star players who decided each game.
+- WINNERS get real hype-man praise. LOSERS get COOKED — funny-mean, specific, exaggerated, earned by a real number or player in the data. Land a punchline, not a hug.
+- Keep every roast about FANTASY decisions and results. Never about anyone's real life, family, looks, or anything personal.
+- Punchy and quotable. No corporate filler, no hashtags, no emoji (the app adds its own).
 
-Here are the FACTS. Do not invent or change any numbers, names, or results — only add commentary.
-
-RESULTS:
-${f.games.map((g) => `- ${g.winner.manager} ${g.winner.points} def. ${g.loser.manager} ${g.loser.points} (margin ${g.margin}${g.tag ? ", " + g.tag : ""})`).join("\n")}
+HARD RULES:
+- Do not invent or change any numbers, names, or results.
+- The data has NO play-by-play. Never invent how a game ended (last-second TD, final drive, garbage time) unless the COMMISSIONER NOTES say so.
+- BENCH POINTS: mention bench / optimal lineup AT MOST ONCE in the entire recap, and only inside "roast" if you choose it. The headline, quips, superlatives, gotw_blurb, and preview must NOT mention bench points or optimal lineups.
+- PREVIEW: only reference matchups that appear in the NEXT WEEK slate below. Never invent a pairing.
+${notesText(f.notes)}
+RESULTS (winner first; each side's top starter):
+${f.games.map((g) => `- [${g.id}] ${g.winner.manager} ${g.winner.points} def. ${g.loser.manager} ${g.loser.points} — margin ${g.margin}${g.tag ? " (" + g.tag + ")" : ""}. ${g.winner.manager}'s star: ${star(g.winner.star)}. ${g.loser.manager}'s star: ${star(g.loser.star)}.`).join("\n")}
 
 SUPERLATIVES:
 - Top score: ${f.superlatives.highTeam.manager} (${f.superlatives.highTeam.points})
 - Low score: ${f.superlatives.lowTeam.manager} (${f.superlatives.lowTeam.points})
 - Performance of the week: ${f.superlatives.performance.player} (${f.superlatives.performance.position}, ${f.superlatives.performance.points}) — started by ${f.superlatives.performance.manager}
-${benchLine(f.superlatives.benchBlunder)}
 
 GAME OF THE WEEK:
 ${gotwText(f.gotw)}
@@ -95,21 +98,35 @@ ${f.standings.map((s) => `${s.rank}. ${s.manager} ${s.w}-${s.l}${s.t ? "-" + s.t
 
 NEXT WEEK:
 ${nextWeekText(f.nextWeek)}
-
-ROAST RULES (important):
-- Only roast a bench mistake if that manager LOST their matchup. NEVER roast anyone for bench points in a game they WON.
-- If their optimal lineup would have won the game, go in hard — the points to win were sitting right there on their bench.
-- If there's no bench blunder worth naming, roast the week's biggest choker instead (worst loss or lowest score).
+${tradesText(f.trades)}
+ROAST CORNER OPTIONS (pick the funniest ONE target):
+${benchLine(f.superlatives.benchBlunder)}
+- Or the week's worst beatdown loser, the low scorer, a winless team, or the loser of a lopsided trade.
+- Never roast anyone for bench points in a game they WON.
 
 Return ONLY a JSON object, no prose around it, with exactly these keys:
 {
-  "headline": "one punchy, quotable sentence capturing the week's big story — lead with the funniest angle",
-  "quips": { ${f.games.map((g) => `"${g.id}": "one sharp one-liner on ${g.winner.manager} vs ${g.loser.manager} — hype it if it was a beatdown, cook the loser if it was ugly"`).join(", ")} },
+  "headline": "one punchy, quotable sentence — lead with the most dramatic game or the biggest performance of the week",
+  "quips": { ${f.games.map((g) => `"${g.id}": "one high-energy broadcast-style line on ${g.winner.manager} vs ${g.loser.manager}, naming the player who decided it"`).join(", ")} },
   "superlatives": "2-3 sentences — gush over the top score and performance of the week, then take a shot at the low score",
-  "gotw_blurb": "2-3 sentences on the Game of the Week, with some bite",
-  "roast": "2-3 sentences. Follow the ROAST RULES above: if there's a bench blunder in a loss, absolutely COOK them — funny-mean, specific to the numbers, land a punchline (go hardest if it cost the win); otherwise cook the biggest choker",
-  "preview": "2-3 sentences hyping next week's featured matchup — talk trash on both sides"
+  "gotw_blurb": "2-3 sentences calling the Game of the Week like a broadcaster — the stars, the swing, the drama. No bench talk.",
+  "roast": "2-3 funny-mean sentences on the single best roast target from ROAST CORNER OPTIONS",
+  "preview": "2-3 sentences hyping next week using ONLY the NEXT WEEK slate — if it's Rivalry Week, call out the 2-3 juiciest grudge matches by name; otherwise hype the Game of the Week. Talk trash on both sides."
 }`;
+}
+
+function notesText(notes) {
+  const n = (notes || "").trim();
+  if (!n) return "";
+  return `\nCOMMISSIONER NOTES (ground truth from someone who watched the games — these are the real story; work them in prominently, especially in the headline and matchup quips):\n${n.slice(0, 1500)}\n`;
+}
+
+function tradesText(trades) {
+  if (!trades || trades.length === 0) return "";
+  const lines = trades.map(
+    (t) => "- " + t.parties.map((p) => `${p.manager} gets ${p.receives.join(", ") || "nothing"}`).join(" | ")
+  );
+  return `\nRECENT TRADES:\n${lines.join("\n")}\n`;
 }
 
 function benchLine(b) {
@@ -133,11 +150,13 @@ function gotwText(gotw) {
 }
 
 function nextWeekText(nw) {
-  if (!nw) return "Season's wrapping up.";
+  if (!nw) return "Season's wrapping up — no next-week slate.";
   const parts = [];
-  if (nw.gotw?.teams) parts.push(`Game of the Week: ${nw.gotw.teams.join(" vs ")}.`);
-  if (nw.gotw?.type === "rivalry") parts.push("It's Rivalry Week.");
+  if (nw.gotw?.type === "rivalry") parts.push("It's RIVALRY WEEK — every matchup below is a declared grudge match.");
   if (nw.gotw?.type === "bowl") parts.push("It's Bowl Week.");
-  if (nw.rivalryAngle) parts.push(`Rivalry angle: ${nw.rivalryAngle}`);
-  return parts.join(" ") || "Standard slate.";
+  if (nw.gotw?.teams) parts.push(`Game of the Week: ${nw.gotw.teams.join(" vs ")}.`);
+  if (nw.slate?.length) {
+    parts.push("Full slate:\n" + nw.slate.map((m) => `- ${m.a.manager}${m.a.record ? " (" + m.a.record + ")" : ""} vs ${m.b.manager}${m.b.record ? " (" + m.b.record + ")" : ""}${m.rivalry ? " [RIVALRY]" : ""}`).join("\n"));
+  }
+  return parts.join("\n") || "Standard slate.";
 }

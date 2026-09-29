@@ -83,6 +83,12 @@ export const RIVALRIES = [
 export const BLOWOUT_MARGIN = 40; // margin >= this  -> 💥 blowout
 export const NAILBITER_MARGIN = 8; // margin <= this  -> 😬 nail-biter
 
+// Recent-trades section. How many weeks back (ending at the recap week) to pull
+// completed trades from, and the max to show. Bump RECENT_TRADE_WEEKS to widen
+// the window if you want a rolling view instead of just the recap week.
+export const RECENT_TRADE_WEEKS = 1;
+export const MAX_TRADES_SHOWN = 4;
+
 // Last completed regular-season week we'll ever show. Bump if your regular
 // season runs long; the tool also never shows a week past Sleeper's current.
 export const LAST_REGULAR_WEEK = 13;

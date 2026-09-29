@@ -58,6 +58,9 @@ Everything you'd ever change lives in `src/config.js`:
 - `RIVALRIES` — the Week 4 Rivalry Week slate; context the AI uses for the
   next-week preview.
 - `BLOWOUT_MARGIN` / `NAILBITER_MARGIN` — the score-tag thresholds.
+- `RECENT_TRADE_WEEKS` / `MAX_TRADES_SHOWN` — the Recent Trades section pulls
+  completed trades from this many weeks back (default 1 = the recap week) and
+  shows up to this many. The section auto-hides on weeks with no trades.
 
 ## Tuning the AI
 

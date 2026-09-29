@@ -2,12 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import RecapPoster from "./RecapPoster.jsx";
 import {
-  getState, getLeague, getUsers, getRosters, getMatchups, getPlayers,
+  getState, getLeague, getUsers, getRosters, getMatchups, getPlayers, getTransactions,
   buildRosterMap, weekHasScores,
 } from "./sleeperClient.js";
 import { computeWeek, computeStandingsWithMovement } from "./recapEngine.js";
-import { resolveGotw, buildNextWeek, assembleFacts, buildChatText } from "./buildRecap.js";
-import { LEAGUE_NAME, BLOWOUT_MARGIN, NAILBITER_MARGIN, LAST_REGULAR_WEEK } from "./config.js";
+import { resolveGotw, buildNextWeek, assembleFacts, buildChatText, buildTrades, buildNextSlate } from "./buildRecap.js";
+import { LEAGUE_NAME, BLOWOUT_MARGIN, NAILBITER_MARGIN, LAST_REGULAR_WEEK, RECENT_TRADE_WEEKS, MAX_TRADES_SHOWN } from "./config.js";
 import "./recap.css";
 
 const thresholds = { blowout: BLOWOUT_MARGIN, nailbiter: NAILBITER_MARGIN };
@@ -21,6 +21,7 @@ export default function App() {
   const [aiState, setAiState] = useState("idle"); // idle | loading | error
   const [copied, setCopied] = useState(false);
   const [posting, setPosting] = useState("idle"); // idle | posting | done | error
+  const [notes, setNotes] = useState(""); // commish notes for the selected week
   const posterRef = useRef(null);
 
   // ---- boot: pull everything once ----
@@ -61,34 +62,76 @@ export default function App() {
   // ---- compute the selected week + fetch AI flavor ----
   useEffect(() => {
     if (!ctx || week == null) return;
-    const computed = computeWeek({
-      entries: ctx.matchupsByWeek[week],
-      rosterPositions: ctx.league.roster_positions,
-      rosterIdToManager: ctx.rosterIdToManager,
-      playersMap: ctx.playersMap,
-      thresholds,
-    });
-    const standings = computeStandingsWithMovement({
-      matchupsByWeek: ctx.matchupsByWeek,
-      throughWeek: week,
-      rosterIdToManager: ctx.rosterIdToManager,
-    });
-    const gotw = resolveGotw(week, computed.games);
-    const nextWeek = buildNextWeek(week);
-    const f = assembleFacts({ week, computed, standings, gotw, nextWeek });
-    setFacts(f);
-    setFlavor(null);
-    setCopied(false);
-    fetchFlavor(f);
+    let cancelled = false;
+    (async () => {
+      const computed = computeWeek({
+        entries: ctx.matchupsByWeek[week],
+        rosterPositions: ctx.league.roster_positions,
+        rosterIdToManager: ctx.rosterIdToManager,
+        playersMap: ctx.playersMap,
+        thresholds,
+      });
+      const standings = computeStandingsWithMovement({
+        matchupsByWeek: ctx.matchupsByWeek,
+        throughWeek: week,
+        rosterIdToManager: ctx.rosterIdToManager,
+      });
+      const gotw = resolveGotw(week, computed.games);
+      const nextWeek = buildNextWeek(week);
+      const trades = await loadRecentTrades(ctx, week);
+      const nextSlate = await loadNextSlate(ctx, week, standings);
+      if (cancelled) return;
+      const f = assembleFacts({ week, computed, standings, gotw, nextWeek, trades, nextSlate });
+      setFacts(f);
+      setFlavor(null);
+      setCopied(false);
+      const savedNotes = readNotes(week);
+      setNotes(savedNotes);
+      fetchFlavor(f, savedNotes);
+    })();
+    return () => { cancelled = true; };
   }, [ctx, week]);
 
-  async function fetchFlavor(f) {
+  async function loadRecentTrades(ctx, week) {
+    const weeks = [];
+    for (let w = week; w > week - RECENT_TRADE_WEEKS && w >= 1; w--) weeks.push(w);
+    const all = [];
+    for (const w of weeks) {
+      try {
+        const tx = await getTransactions(w);
+        if (Array.isArray(tx)) all.push(...tx);
+      } catch { /* no transactions for that week */ }
+    }
+    return buildTrades(all, ctx.rosterIdToManager, ctx.playersMap).slice(0, MAX_TRADES_SHOWN);
+  }
+
+  async function loadNextSlate(ctx, week, standings) {
+    if (week + 1 > LAST_REGULAR_WEEK) return null;
+    try {
+      const entries = await getMatchups(week + 1);
+      return buildNextSlate(entries, ctx.rosterIdToManager, standings);
+    } catch {
+      return null;
+    }
+  }
+
+  const notesKey = (w) => `ccff_notes_w${w}`;
+  function readNotes(w) {
+    try { return localStorage.getItem(notesKey(w)) || ""; } catch { return ""; }
+  }
+  function regenerateWithNotes() {
+    if (!facts) return;
+    try { localStorage.setItem(notesKey(facts.week), notes); } catch { /* ignore */ }
+    fetchFlavor(facts, notes);
+  }
+
+  async function fetchFlavor(f, n = "") {
     setAiState("loading");
     try {
       const res = await fetch("/api/recap", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ facts: f }),
+        body: JSON.stringify({ facts: { ...f, notes: n } }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
@@ -169,11 +212,13 @@ export default function App() {
 
       {facts && (
         <main>
-          <Headline flavor={flavor} aiState={aiState} onRetry={() => fetchFlavor(facts)} />
+          <CommishNotes notes={notes} setNotes={setNotes} onRegenerate={regenerateWithNotes} busy={aiState === "loading"} />
+          <Headline flavor={flavor} aiState={aiState} onRetry={() => fetchFlavor(facts, notes)} />
           <Scoreboard facts={facts} flavor={flavor} />
           <Superlatives facts={facts} flavor={flavor} />
           <GameOfWeek facts={facts} flavor={flavor} />
           <Preview facts={facts} flavor={flavor} />
+          <Trades facts={facts} />
           <Standings facts={facts} />
           <Roast flavor={flavor} />
         </main>
@@ -185,6 +230,22 @@ export default function App() {
         </div>
       )}
     </Shell>
+  );
+}
+
+function CommishNotes({ notes, setNotes, onRegenerate, busy }) {
+  return (
+    <section className="notes">
+      <label className="notes-label" htmlFor="commish-notes">Commish notes <span className="muted">(what the box score can't show — the AI builds around these)</span></label>
+      <textarea
+        id="commish-notes"
+        rows={3}
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        placeholder="e.g. Brett beat Jace on the last run of the Sunday night game. Joey talked trash all week."
+      />
+      <button className="btn" onClick={onRegenerate} disabled={busy}>{busy ? "Writing…" : "Regenerate recap"}</button>
+    </section>
   );
 }
 
@@ -336,6 +397,27 @@ function Preview({ facts, flavor }) {
       {nw?.gotw?.type === "rivalry" && <div className="preview-line">Rivalry Week.</div>}
       {nw?.gotw?.type === "bowl" && <div className="preview-line">Bowl Week.</div>}
       {flavor?.preview && <p className="prose">{flavor.preview}</p>}
+    </section>
+  );
+}
+
+function Trades({ facts }) {
+  if (!facts.trades?.length) return null;
+  return (
+    <section className="block">
+      <h3 className="sectlabel gold">Recent trades</h3>
+      <div className="trades">
+        {facts.trades.map((t) => (
+          <div key={t.id} className="trade">
+            {t.parties.map((p, i) => (
+              <div key={i} className="trade-side">
+                <span className="trade-mgr">{p.manager} gets</span>{" "}
+                <span className="trade-assets">{p.receives.length ? p.receives.join(", ") : "—"}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

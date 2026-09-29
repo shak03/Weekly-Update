@@ -181,3 +181,28 @@ h1 .thin { font-weight: 400; color: var(--muted); }
 .p-move.up { color: var(--green); } .p-move.down { color: var(--red); }
 .p-roast { background: rgba(255,92,92,.06); border: 1px solid var(--line); border-left: 4px solid var(--red); border-radius: 12px; padding: 16px; font-size: 18px; color: #ffd9d9; }
 .p-foot { color: var(--muted); font-size: 13px; text-align: center; margin-top: 22px; }
+
+/* ---- recent trades (page) ---- */
+.trades { display: grid; gap: 10px; }
+.trade { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--gold); border-radius: var(--radius); padding: 12px 14px; }
+.trade-side { font-size: 14px; }
+.trade-side + .trade-side { margin-top: 4px; }
+.trade-mgr { color: var(--muted); }
+.trade-assets { font-weight: 600; }
+
+/* ---- recent trades (poster) ---- */
+.p-trades { display: flex; flex-direction: column; gap: 10px; margin-bottom: 6px; }
+.p-trade { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--gold); border-radius: 12px; padding: 12px 16px; }
+.p-trade-side { font-size: 16px; }
+.p-trade-side + .p-trade-side { margin-top: 4px; }
+.p-trade-mgr { color: var(--muted); }
+.p-trade-assets { font-weight: 700; }
+
+/* ---- commish notes (page only, never in the poster) ---- */
+.notes { margin-top: 18px; padding: 14px; background: var(--panel); border: 1px dashed var(--line); border-radius: var(--radius); display: grid; gap: 8px; }
+.notes-label { font-size: 13px; font-weight: 600; }
+.notes textarea { width: 100%; resize: vertical; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: inherit; font-size: 14px; }
+.notes .btn { justify-self: start; }
+
+/* ---- per-game quips on the poster ---- */
+.p-quip { margin-top: 8px; font-size: 14px; line-height: 1.35; color: #cfd6e2; }
