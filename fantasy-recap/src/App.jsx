@@ -19,6 +19,7 @@ export default function App() {
   const [facts, setFacts] = useState(null);
   const [flavor, setFlavor] = useState(null);
   const [aiState, setAiState] = useState("idle"); // idle | loading | error
+  const [aiError, setAiError] = useState("");
   const [copied, setCopied] = useState(false);
   const [posting, setPosting] = useState("idle"); // idle | posting | done | error
   const [notes, setNotes] = useState(""); // commish notes for the selected week
@@ -133,11 +134,19 @@ export default function App() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ facts: { ...f, notes: n } }),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const raw = await res.text();
+        let msg = raw;
+        try { msg = JSON.parse(raw).error || raw; } catch { /* keep raw */ }
+        if (res.status === 504) msg = "The AI took too long (Vercel timeout). Hit Retry.";
+        throw new Error(msg);
+      }
       const data = await res.json();
       setFlavor(data.flavor);
+      setAiError("");
       setAiState("idle");
-    } catch {
+    } catch (err) {
+      setAiError(String(err.message || err).slice(0, 300));
       setAiState("error"); // page still works; flavor lines just won't show
     }
   }
@@ -213,7 +222,7 @@ export default function App() {
       {facts && (
         <main>
           <CommishNotes notes={notes} setNotes={setNotes} onRegenerate={regenerateWithNotes} busy={aiState === "loading"} />
-          <Headline flavor={flavor} aiState={aiState} onRetry={() => fetchFlavor(facts, notes)} />
+          <Headline flavor={flavor} aiState={aiState} aiError={aiError} onRetry={() => fetchFlavor(facts, notes)} />
           <Scoreboard facts={facts} flavor={flavor} />
           <Superlatives facts={facts} flavor={flavor} />
           <GameOfWeek facts={facts} flavor={flavor} />
@@ -253,7 +262,7 @@ function Shell({ children }) {
   return <div className="wrap">{children}</div>;
 }
 
-function Headline({ flavor, aiState, onRetry }) {
+function Headline({ flavor, aiState, aiError, onRetry }) {
   return (
     <section className="hero">
       {flavor?.headline
@@ -261,7 +270,7 @@ function Headline({ flavor, aiState, onRetry }) {
         : aiState === "loading"
           ? <h2 className="headline dim">Writing the recap…</h2>
           : aiState === "error"
-            ? <h2 className="headline dim">Flavor text unavailable. <button className="link" onClick={onRetry}>Retry</button> <span className="muted">(numbers below are still live)</span></h2>
+            ? <div className="ai-error"><strong>AI writeup failed.</strong> <button className="link" onClick={onRetry}>Retry</button><div className="ai-error-detail">{aiError || "Unknown error"}</div></div>
             : <h2 className="headline dim">&nbsp;</h2>}
     </section>
   );

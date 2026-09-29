@@ -206,3 +206,7 @@ h1 .thin { font-weight: 400; color: var(--muted); }
 
 /* ---- per-game quips on the poster ---- */
 .p-quip { margin-top: 8px; font-size: 14px; line-height: 1.35; color: #cfd6e2; }
+
+/* ---- AI error box (replaces the giant headline-sized error) ---- */
+.ai-error { background: rgba(255,92,92,.08); border: 1px solid rgba(255,92,92,.35); border-radius: var(--radius); padding: 12px 14px; font-size: 15px; }
+.ai-error-detail { margin-top: 6px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: var(--muted); word-break: break-word; }

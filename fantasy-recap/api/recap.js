@@ -19,50 +19,71 @@ export default async function handler(req, res) {
   }
 
   try {
-    const facts = req.body?.facts ?? req.body; // { week, games, superlatives, gotw, standings, nextWeek, leagueName }
+    const facts = req.body?.facts ?? req.body; // { week, games, superlatives, gotw, standings, nextWeek, leagueName, notes }
     const prompt = buildPrompt(facts);
 
-    const anthRes = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 1400,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
+    // Up to 2 attempts: if the first reply isn't valid JSON, ask once more.
+    let lastErr = "";
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const messages = [{ role: "user", content: prompt }];
+      if (attempt > 0) {
+        messages[0].content +=
+          "\n\nIMPORTANT: your previous reply was not valid JSON. Reply with ONLY the JSON object. Never put double-quote characters inside a string value — use single quotes for any quoted words.";
+      }
 
-    if (!anthRes.ok) {
-      const detail = await anthRes.text();
-      return res.status(502).json({ error: "Anthropic API error", detail });
+      const anthRes = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({ model: MODEL, max_tokens: 3000, messages }),
+      });
+
+      if (!anthRes.ok) {
+        // Surface Anthropic's own message (bad key, no credits, bad model, overloaded...)
+        const raw = await anthRes.text();
+        let msg = raw;
+        try { msg = JSON.parse(raw)?.error?.message || raw; } catch { /* keep raw */ }
+        return res.status(502).json({ error: `Anthropic ${anthRes.status}: ${msg}`.slice(0, 400) });
+      }
+
+      const data = await anthRes.json();
+      const text = (data.content || [])
+        .map((b) => (b.type === "text" ? b.text : ""))
+        .join("")
+        .trim();
+
+      if (data.stop_reason === "max_tokens") {
+        lastErr = "AI reply got cut off (too long)";
+        continue;
+      }
+      try {
+        return res.status(200).json({ flavor: parseJSON(text) });
+      } catch (e) {
+        lastErr = String(e.message || e);
+      }
     }
-
-    const data = await anthRes.json();
-    const text = (data.content || [])
-      .map((b) => (b.type === "text" ? b.text : ""))
-      .join("")
-      .trim();
-
-    return res.status(200).json({ flavor: parseJSON(text) });
+    return res.status(502).json({ error: `AI returned unusable output: ${lastErr}` });
   } catch (err) {
-    return res.status(500).json({ error: String(err) });
+    return res.status(500).json({ error: String(err).slice(0, 400) });
   }
 }
 
 function parseJSON(text) {
-  const cleaned = text.replace(/```json/gi, "").replace(/```/g, "").trim();
-  try {
-    return JSON.parse(cleaned);
-  } catch {
-    // last-ditch: grab the outermost {...}
-    const m = cleaned.match(/\{[\s\S]*\}/);
-    if (m) return JSON.parse(m[0]);
-    throw new Error("Model did not return valid JSON");
+  const cleaned = text
+    .replace(/```json/gi, "")
+    .replace(/```/g, "")
+    .trim();
+  const tryParse = (s) => { try { return JSON.parse(s); } catch { return null; } };
+  const m = cleaned.match(/\{[\s\S]*\}/);
+  const candidates = [cleaned, m && m[0]].filter(Boolean);
+  for (const c of candidates) {
+    const out = tryParse(c) ?? tryParse(c.replace(/[\u201C\u201D]/g, "'")); // curly quotes -> '
+    if (out && typeof out === "object") return out;
   }
+  throw new Error("Model did not return valid JSON");
 }
 
 function buildPrompt(f) {
@@ -81,6 +102,7 @@ HARD RULES:
 - The data has NO play-by-play. Never invent how a game ended (last-second TD, final drive, garbage time) unless the COMMISSIONER NOTES say so.
 - BENCH POINTS: mention bench / optimal lineup AT MOST ONCE in the entire recap, and only inside "roast" if you choose it. The headline, quips, superlatives, gotw_blurb, and preview must NOT mention bench points or optimal lineups.
 - PREVIEW: only reference matchups that appear in the NEXT WEEK slate below. Never invent a pairing.
+- JSON SAFETY: never put double-quote characters inside a string value. If you quote someone (e.g. from the commissioner notes), use single quotes.
 ${notesText(f.notes)}
 RESULTS (winner first; each side's top starter):
 ${f.games.map((g) => `- [${g.id}] ${g.winner.manager} ${g.winner.points} def. ${g.loser.manager} ${g.loser.points} — margin ${g.margin}${g.tag ? " (" + g.tag + ")" : ""}. ${g.winner.manager}'s star: ${star(g.winner.star)}. ${g.loser.manager}'s star: ${star(g.loser.star)}.`).join("\n")}
